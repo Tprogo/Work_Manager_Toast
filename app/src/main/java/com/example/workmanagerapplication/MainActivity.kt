@@ -1,7 +1,10 @@
 package com.example.workmanagerapplication
 
+import android.content.Context
+import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.Switch
 import android.widget.TextView
@@ -14,6 +17,7 @@ import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import kotlin.properties.Delegates
@@ -21,10 +25,16 @@ import kotlin.properties.Delegates
 class MainActivity : AppCompatActivity() {
 
 
-    private var savedState: Boolean? = null
+
     private lateinit var darkModeBtn: Switch
 
     private lateinit var setThemeText: TextView
+
+    private var isInitialLoad = true
+
+//    init {
+//        checkSavedThemeMode()
+//    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -34,7 +44,9 @@ class MainActivity : AppCompatActivity() {
 
         setThemeText.text = "Enable Dark Mode"
 
-        checkSavedThemeMode()
+    checkSavedThemeMode()
+
+
 
 
 
@@ -65,22 +77,48 @@ class MainActivity : AppCompatActivity() {
         WorkManager.getInstance(this).enqueue(workerRequest)
 
 
-        // set dark theme with the help of switch button
+
+//         check the theme(dark or light)
+//    fun isDarkThemeEnabled(context: Context): Boolean {
+//        return context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+//    }
+//
+//    if (isDarkThemeEnabled(this)){
+//        darkModeBtn.isChecked = true
+//    } else {
+//        darkModeBtn.isChecked = false
+//    }
+
+
+        // set dark mode with the help of switch button
 
         darkModeBtn.setOnCheckedChangeListener { _, isChecked ->
 
-            setThemeMode(isChecked)
-            CoroutineScope(Dispatchers.Main).launch {
-                pDatastore.saveThemeState(isChecked)
+            if (isChecked){
+
+            setThemeMode(true)
+            CoroutineScope(Dispatchers.IO).launch {
+                pDatastore.saveThemeState(true)
+            }
+            } else {
+                setThemeMode(false)
+            CoroutineScope(Dispatchers.IO).launch {
+                pDatastore.saveThemeState(false)
             }
         }
+
+            Log.d("Saved TAG","State in DataStore $isChecked")
+        }
+
+
     }
 
-    private fun setThemeMode(flag: Boolean){
+    private fun setThemeMode(flag: Boolean) {
         if (flag){
 
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
             setThemeText.text = "Disable Dark Mode"
+
 
 
 
@@ -97,13 +135,19 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.Main).launch{
             val pDatastore = PDatastore(this@MainActivity)
 
-            pDatastore.getThemeState().collect{it ->
+            val dataState = pDatastore.getThemeState().first()
 
-                savedState = it
 
-                if (it != null) {
-                    darkModeBtn.isChecked = it
-                }
+                Log.d("Retrieve TAG","State in DataStore $dataState")
+
+
+            if (dataState == true){
+                setThemeMode(true)
+                darkModeBtn.isChecked = true
+            } else {
+                setThemeMode(false)
+                darkModeBtn.isChecked = false
+            }
 
 
 
@@ -115,6 +159,6 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        }
+
     }
 }
